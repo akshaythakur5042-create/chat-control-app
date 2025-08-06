@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HCL Chat-Control App</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-image: url('https://images.unsplash.com/photo-1525182008055-f88b95ff7980');
+      background-size: cover;
+      background-position: center;
+      color: #fff;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 15px;
+    }
+    #messages {
+      height: 400px;
+      overflow-y: auto;
+      border: 1px solid #0ff;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .message {
+      margin: 5px 0;
+      padding: 8px 12px;
+      border-radius: 20px;
+      max-width: 70%;
+      word-wrap: break-word;
+    }
+    .me {
+      background: #00ffff;
+      color: #000;
+      margin-left: auto;
+      text-align: right;
+    }
+    .friend {
+      background: #333;
+      text-align: left;
+    }
+    .typing {
+      font-style: italic;
+      color: #ccc;
+    }
+    input, button {
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 5px;
+      border: none;
+      outline: none;
+    }
+    #messageInput {
+      width: 75%;
+    }
+    #sendBtn {
+      background: #00ffff;
+      color: #000;
+      cursor: pointer;
+    }
+    #localVideo {
+      width: 100%;
+      margin-top: 10px;
+      border: 2px solid #00ffff;
+    }
+    footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 14px;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>💬 HCL Chat-Control App</h2>
+
+    <div id="messages"></div>
+    <div id="typingStatus" class="typing"></div>
+
+    <input id="messageInput" placeholder="Type your message..." />
+    <button id="sendBtn" onclick="sendMessage()">Send</button>
+
+    <br><br>
+    <button onclick="startScreenShare()">📺 Share Screen</button>
+    <video id="localVideo" autoplay muted></video>
+
+    <footer>
+      Developed by Akshay · HCL Technologies
+    </footer>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    const socket = io();
+    const input = document.getElementById('messageInput');
+    const messages = document.getElementById('messages');
+    const typingStatus = document.getElementById('typingStatus');
+
+    let username = prompt("Enter your name:");
+    if (!username) username = "Anonymous";
+
+    function replaceEmojis(msg) {
+      return msg.replace(/:smile:/g, "😄").replace(/:heart:/g, "❤️");
+    }
+
+    function sendMessage() {
+      const msg = input.value.trim();
+      if (msg) {
+        socket.emit("chat message", { user: username, message: msg });
+        appendMessage(msg, true);
+        input.value = "";
+        socket.emit("typing", "");
+      }
+    }
+
+    function appendMessage(msg, isMe, from = "") {
+      const div = document.createElement("div");
+      div.className = `message ${isMe ? "me" : "friend"}`;
+      div.innerHTML = isMe ? replaceEmojis(msg) : `<strong>${from}</strong>: ${replaceEmojis(msg)}`;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    input.addEventListener("input", () => {
+      socket.emit("typing", username + " is typing...");
+    });
+
+    socket.on("chat message", (data) => {
+      if (data.user !== username) {
+        appendMessage(data.message, false, data.user);
+      }
+    });
+
+    socket.on("typing", (msg) => {
+      typingStatus.innerText = msg;
+      setTimeout(() => typingStatus.innerText = "", 2000);
+    });
+
+    // Screen sharing via WebRTC (One-way)
+    let localStream;
+    async function startScreenShare() {
+      try {
+        localStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        document.getElementById("localVideo").srcObject = localStream;
+      } catch (err) {
+        alert("Screen share error: " + err);
+      }
+    }
+  </script>
+</body>
+</html>
