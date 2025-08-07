@@ -1,14 +1,14 @@
 {
   "name": "Chat-Control App",
-  "short_name": "ChatControl",
-  "start_url": "/",
+  "short_name": "ChatApp",
+  "start_url": ".",
   "display": "standalone",
-  "background_color": "#111",
-  "theme_color": "#00ffff",
+  "background_color": "#000000",
+  "theme_color": "#00ffcc",
   "icons": [
     {
-      "src": "logo.png",
-      "sizes": "192x192",
+      "src": "https://img.icons8.com/?size=512&id=59804&format=png",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ]
