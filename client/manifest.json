@@ -1,10 +1,10 @@
 {
-  "name": "Chat Control",
-  "short_name": "ChatApp",
-  "start_url": ".",
+  "name": "Chat-Control App",
+  "short_name": "ChatControl",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#111",
-  "theme_color": "#00cfff",
+  "theme_color": "#00ffff",
   "icons": [
     {
       "src": "logo.png",
