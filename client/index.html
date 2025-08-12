@@ -1,59 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chat-Control App · Akshay</title>
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="stylesheet" href="/style.css" />
-  <link rel="icon" href="/logo.png" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat-Control App</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app-container">
-    <header class="app-header">
-      <img src="/logo.png" alt="Logo" class="app-logo" />
+  <div class="app">
+    <header>
+      <img src="https://i.postimg.cc/SR5gLsZ1/logo.png" class="logo" alt="Logo">
       <h1>Chat-Control App</h1>
-      <p class="credit">Developed by Akshay · HCL Technologies</p>
     </header>
 
-    <div class="chat-window">
-      <div id="messages" class="messages"></div>
-      <div id="typingIndicator" class="typing"></div>
+    <div id="messages"></div>
+    <div id="typing"></div>
 
-      <div class="input-area">
-        <input id="messageInput" type="text" placeholder="Type your message..." />
-        <button onclick="sendMessage()">Send</button>
-      </div>
-    </div>
+    <footer>
+      <input id="messageInput" type="text" placeholder="Type a message...">
+      <button onclick="sendMessage()">Send</button>
+    </footer>
 
-    <div class="controls">
-      <button onclick="startScreenShare()">🖥️ Start Screen Share</button>
-      <button onclick="installApp()">⬇️ Install App</button>
-    </div>
-
-    <video id="localVideo" autoplay muted class="screen-video"></video>
+    <p class="credit">Developed by Akshay · HCL Technologies</p>
   </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="/script.js"></script>
-  <script>
-    // PWA install support
-    let deferredPrompt;
-    window.addEventListener("beforeinstallprompt", (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-    });
-
-    function installApp() {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choice) => {
-          if (choice.outcome === "accepted") {
-            console.log("App installed");
-          }
-        });
-      }
-    }
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>

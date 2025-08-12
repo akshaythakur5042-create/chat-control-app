@@ -1,7 +1,6 @@
 {
   "name": "chat-control-app",
   "version": "1.0.0",
-  "description": "Premium real-time chat with screen sharing and UI like WhatsApp",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js"
