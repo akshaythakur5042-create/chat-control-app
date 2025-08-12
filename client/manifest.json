@@ -1,12 +1,15 @@
 {
-  "name": "Chat-Control App",
+  "name": "HCL Chat-Control App",
   "short_name": "ChatControl",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
-  "background_color": "#071014",
-  "theme_color": "#00bfa5",
+  "background_color": "#000000",
+  "description": "Premium WhatsApp-style chat app by Akshay",
   "icons": [
-    { "src": "https://i.postimg.cc/SR5gLsZ1/logo.png", "sizes":"192x192", "type":"image/png" },
-    { "src": "https://i.postimg.cc/SR5gLsZ1/logo.png", "sizes":"512x512", "type":"image/png" }
+    {
+      "src": "logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
   ]
 }
