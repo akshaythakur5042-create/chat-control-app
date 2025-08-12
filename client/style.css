@@ -77,7 +77,7 @@ body{
 /* friend messages (left) */
 .msg.friend{
   margin-right:auto;
-  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(245,245,245,0.95));
+  background: linear-gradient(180deg, #beafdcf2, rgba(13, 193, 40, 0.95));
   color:#111;
   border-bottom-left-radius:4px;
 }
@@ -86,7 +86,7 @@ body{
 .ticks{font-size:12px;color:rgba(0,0,0,0.55);margin-left:6px;}
 
 /* typing & reply */
-.typing{height:20px;color:#e6f7f2;font-style:italic;padding-left:6px}
+.typing{height:20px;color:hsl(135, 82%, 48%);font-style:italic;padding-left:6px}
 .reply-box{background:rgba(255,255,255,0.06);padding:8px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;margin:0 6px}
 .hidden{display:none}
 
