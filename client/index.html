@@ -1,32 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat-Control App</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="manifest.json">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat-Control App · Akshay</title>
+
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#00bfa5" />
+  <link rel="icon" href="/logo.png" />
+
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <header>
-    <img src="logo.png" alt="Logo" class="logo">
-    <h1>HCL Chat-Control</h1>
-  </header>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img src="/logo.png" alt="logo" class="logo"/>
+        <div class="titles">
+          <div class="appname">Chat-Control App</div>
+          <div class="subtitle">Developed by Akshay · HCL Technologies</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="installBtn" class="ghost" title="Install app">Install</button>
+      </div>
+    </header>
 
-  <main id="chat-container">
-    <div id="messages"></div>
-  </main>
+    <main class="main">
+      <div class="left-panel">
+        <!-- placeholder for future user list -->
+      </div>
 
-  <div id="typing-indicator" style="display:none;">Friend is typing...</div>
+      <section class="chat-panel">
+        <div id="messages" class="messages" role="log" aria-live="polite"></div>
+        <div id="typing" class="typing"></div>
 
-  <footer>
-    <input id="messageInput" type="text" placeholder="Type your message..." autocomplete="off">
-    <button id="sendBtn">Send</button>
-  </footer>
+        <div id="replyBox" class="reply-box hidden">
+          Replying to: <span id="replyPreview"></span>
+          <button id="cancelReply" class="small">x</button>
+        </div>
 
-  <p class="credit">Developed by Akshay · HCL Technologies</p>
+        <div class="composer">
+          <input id="nameInput" type="text" placeholder="Your name (press Enter to save)" />
+          <input id="messageInput" type="text" placeholder="Type a message... (try :smile: :heart: )" />
+          <button id="sendBtn">Send</button>
+          <button id="shareBtn" title="Share your screen">📺</button>
+        </div>
+
+        <video id="localVideo" autoplay muted class="local-video hidden"></video>
+      </section>
+    </main>
+
+    <footer class="footer">© Akshay · HCL Technologies</footer>
+  </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>

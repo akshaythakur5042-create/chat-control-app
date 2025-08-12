@@ -1,20 +1,25 @@
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open('chat-control-v1').then((cache) => {
-      return cache.addAll([
-        '/',
-        '/index.html',
-        '/style.css',
-        '/script.js',
-        '/logo.png',
-        '/background.jpg'
-      ]);
-    })
-  );
+const CACHE_NAME = 'chat-control-cache-v1';
+const ASSETS = [
+  '/',
+  '/index.html',
+  '/style.css',
+  '/script.js',
+  '/logo.png',
+  '/manifest.json'
+];
+
+self.addEventListener('install', (evt) => {
+  evt.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
+  self.skipWaiting();
 });
 
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then((response) => response || fetch(e.request))
+self.addEventListener('activate', (evt) => {
+  evt.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.map(k => { if(k !== CACHE_NAME) return caches.delete(k); })))
   );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (evt) => {
+  evt.respondWith(caches.match(evt.request).then(res => res || fetch(evt.request)));
 });
