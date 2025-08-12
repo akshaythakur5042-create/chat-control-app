@@ -1,36 +1,35 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Chat-Control App · Akshay</title>
 
+  <!-- PWA manifest -->
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#00bfa5" />
-  <link rel="icon" href="/logo.png" />
 
+  <!-- Styles -->
   <link rel="stylesheet" href="/style.css" />
+
+  <meta name="theme-color" content="#00bfa5" />
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <img src="/logo.png" alt="logo" class="logo"/>
-        <div class="titles">
+        <img src="/logo.png" alt="logo" class="logo" />
+        <div class="title">
           <div class="appname">Chat-Control App</div>
           <div class="subtitle">Developed by Akshay · HCL Technologies</div>
         </div>
       </div>
-      <div class="actions">
-        <button id="installBtn" class="ghost" title="Install app">Install</button>
+
+      <div class="right-actions">
+        <button id="installBtn" class="install-btn" title="Install app" style="display:none">📲 Install</button>
       </div>
     </header>
 
     <main class="main">
-      <div class="left-panel">
-        <!-- placeholder for future user list -->
-      </div>
-
       <section class="chat-panel">
         <div id="messages" class="messages" role="log" aria-live="polite"></div>
         <div id="typing" class="typing"></div>
@@ -41,8 +40,8 @@
         </div>
 
         <div class="composer">
-          <input id="nameInput" type="text" placeholder="Your name (press Enter to save)" />
-          <input id="messageInput" type="text" placeholder="Type a message... (try :smile: :heart: )" />
+          <input id="nameInput" type="text" placeholder="Your name (press Enter)" />
+          <input id="messageInput" type="text" placeholder="Type a message (use :smile: :heart: )" />
           <button id="sendBtn">Send</button>
           <button id="shareBtn" title="Share your screen">📺</button>
         </div>
@@ -54,7 +53,9 @@
     <footer class="footer">© Akshay · HCL Technologies</footer>
   </div>
 
+  <!-- Socket.IO -->
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <!-- App script -->
   <script src="/script.js"></script>
 </body>
 </html>

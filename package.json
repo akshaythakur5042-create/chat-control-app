@@ -1,7 +1,7 @@
 {
   "name": "chat-control-app",
   "version": "1.0.0",
-  "description": "Premium Chat + Screen Share - Akshay",
+  "description": "Chat + Screen Share App by Akshay",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js"
