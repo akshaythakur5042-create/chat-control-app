@@ -1,31 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat-Control App</title>
-  <link rel="manifest" href="../manifest.json">
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat-Control App · Akshay</title>
+
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#00bfa5"/>
+  <link rel="icon" href="https://i.postimg.cc/SR5gLsZ1/logo.png" />
+
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <div class="app">
-    <header>
-      <img src="https://i.postimg.cc/SR5gLsZ1/logo.png" class="logo" alt="Logo">
-      <h1>Chat-Control App</h1>
+    <header class="top">
+      <div class="brand">
+        <img class="logo" src="https://i.postimg.cc/SR5gLsZ1/logo.png" alt="logo"/>
+        <div>
+          <div class="app-name">Chat-Control App</div>
+          <div class="sub">Developed by Akshay · HCL Technologies</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="installBtn" class="btn ghost" title="Install app">Install</button>
+      </div>
     </header>
 
-    <div id="messages"></div>
-    <div id="typing"></div>
+    <main class="main">
+      <section class="chat">
+        <div id="messages" class="messages" role="log" aria-live="polite"></div>
+        <div id="typing" class="typing"></div>
 
-    <footer>
-      <input id="messageInput" type="text" placeholder="Type a message...">
-      <button onclick="sendMessage()">Send</button>
-    </footer>
+        <div id="replyBox" class="reply-box hidden">
+          Replying to: <span id="replyText"></span>
+          <button id="cancelReply" class="small">x</button>
+        </div>
 
-    <p class="credit">Developed by Akshay · HCL Technologies</p>
+        <div class="composer">
+          <input id="nameInput" placeholder="Your name (press Enter)" />
+          <input id="messageInput" placeholder="Type a message (use :smile: :heart: )" />
+          <button id="sendBtn" class="btn">Send</button>
+          <button id="shareBtn" class="btn">📺</button>
+        </div>
+
+        <video id="localVideo" autoplay muted class="local-video hidden"></video>
+      </section>
+    </main>
+
+    <footer class="footer">© Akshay · HCL Technologies</footer>
   </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>

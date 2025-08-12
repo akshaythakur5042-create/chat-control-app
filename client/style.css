@@ -1,87 +1,111 @@
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: url('https://i.postimg.cc/xT4QmjM8/bg.jpg') no-repeat center center fixed;
-  background-size: cover;
+:root{
+  --accent: #00bfa5;
+  --dark: #071014;
+  --panel: rgba(0,0,0,0.55);
 }
 
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  backdrop-filter: blur(6px);
+/* Background */
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  background: url("https://images.unsplash.com/photo-1506765515384-028b60a970df?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3&s=1b3c9d74e7b0b6a9be2d0f7f6bd2f2f6") center/cover no-repeat fixed;
+  color:#fff;
 }
 
-header {
-  display: flex;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.6);
-  padding: 10px;
-  color: white;
+/* App */
+.app{
+  max-width:980px;
+  margin:18px auto;
+  min-height:86vh;
+  border-radius:12px;
+  overflow:hidden;
+  background: linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.6));
+  box-shadow:0 10px 30px rgba(0,0,0,0.6);
 }
 
-.logo {
-  width: 40px;
-  height: 40px;
-  margin-right: 10px;
+/* Top bar */
+.top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 18px;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:52px;height:52px;border-radius:10px;object-fit:cover}
+.app-name{font-size:20px;color:var(--accent);font-weight:700}
+.sub{font-size:12px;color:#d0d0d0;opacity:0.9}
+.controls .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.08);color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer}
+
+/* Main */
+.main{display:flex;padding:12px}
+.chat{flex:1;display:flex;flex-direction:column;gap:8px;padding:6px}
+
+/* messages */
+.messages{
+  flex:1;
+  overflow:auto;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-height:68vh;
 }
 
-#messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
+/* message bubble */
+.msg{
+  max-width:78%;
+  padding:10px 12px;
+  border-radius:12px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.25);
+  word-break:break-word;
+  position:relative;
+}
+.msg .meta{font-size:12px;color:rgba(255,255,255,0.8);margin-bottom:6px}
+.msg .text{font-size:15px;line-height:1.3}
+
+/* my messages (right) */
+.msg.me{
+  margin-left:auto;
+  background: linear-gradient(180deg,#00caa3,#00796b);
+  color:#00251f;
+  text-align:right;
+  border-bottom-right-radius:4px;
 }
 
-.message {
-  padding: 8px 12px;
-  margin: 5px;
-  border-radius: 8px;
-  max-width: 70%;
-  display: inline-block;
+/* friend messages (left) */
+.msg.friend{
+  margin-right:auto;
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(245,245,245,0.95));
+  color:#111;
+  border-bottom-left-radius:4px;
 }
 
-.me {
-  background: #dcf8c6;
-  align-self: flex-end;
-}
+/* ticks */
+.ticks{font-size:12px;color:rgba(0,0,0,0.55);margin-left:6px;}
 
-.friend {
-  background: white;
-  align-self: flex-start;
-}
+/* typing & reply */
+.typing{height:20px;color:#e6f7f2;font-style:italic;padding-left:6px}
+.reply-box{background:rgba(255,255,255,0.06);padding:8px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;margin:0 6px}
+.hidden{display:none}
 
-#typing {
-  color: white;
-  font-style: italic;
-  padding: 5px;
-}
+/* composer */
+.composer{display:flex;gap:8px;align-items:center;padding:10px 6px;border-top:1px solid rgba(255,255,255,0.04)}
+#nameInput{width:180px;padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.25);color:#fff}
+#messageInput{flex:1;padding:10px;border-radius:999px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.25);color:#fff}
+.btn{background:var(--accent);border:none;padding:10px 14px;border-radius:10px;color:#000;font-weight:700;cursor:pointer}
+.small{background:transparent;border:none;color:#fff;cursor:pointer}
 
-footer {
-  display: flex;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.6);
-}
+/* local video */
+.local-video{width:100%;max-height:320px;border-radius:8px;border:3px solid var(--accent);object-fit:cover;margin:6px 0;display:block}
 
-footer input {
-  flex: 1;
-  padding: 8px;
-  border-radius: 5px;
-  border: none;
-}
+/* footer */
+.footer{padding:10px;text-align:center;color:#dcdcdc;background:rgba(0,0,0,0.45);font-size:13px}
 
-footer button {
-  padding: 8px 12px;
-  margin-left: 5px;
-  background: #25d366;
-  border: none;
-  color: white;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.credit {
-  text-align: center;
-  color: white;
-  font-size: 12px;
-  padding: 5px;
+/* responsive */
+@media (max-width:700px){
+  .app{margin:0;border-radius:0;height:100vh}
+  #nameInput{display:none}
+  .messages{max-height:60vh}
 }

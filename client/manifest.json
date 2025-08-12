@@ -1,15 +1,12 @@
 {
   "name": "Chat-Control App",
-  "short_name": "ChatApp",
-  "start_url": "./client/index.html",
+  "short_name": "ChatControl",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#25d366",
+  "background_color": "#071014",
+  "theme_color": "#00bfa5",
   "icons": [
-    {
-      "src": "https://i.postimg.cc/SR5gLsZ1/logo.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    }
+    { "src": "https://i.postimg.cc/SR5gLsZ1/logo.png", "sizes":"192x192", "type":"image/png" },
+    { "src": "https://i.postimg.cc/SR5gLsZ1/logo.png", "sizes":"512x512", "type":"image/png" }
   ]
 }
