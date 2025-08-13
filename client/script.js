@@ -1,208 +1,306 @@
-/* client/script.js */
-const socket = io(); // same-origin
-// Elements
-const nameModal   = document.getElementById('nameModal');
-const nameField   = document.getElementById('nameField');
-const saveNameBtn = document.getElementById('saveNameBtn');
+/* globals io */
+const $ = (q) => document.querySelector(q);
+const messagesEl = $('#messages');
+const typingEl = $('#typing');
+const listEl = $('#onlineList');
+const shareStatusEl = $('#shareStatus');
+const messageInput = $('#messageInput');
+const sendBtn = $('#sendBtn');
+const emojiBtn = $('#emojiBtn');
+const startShareBtn = $('#startShareBtn');
+const stopShareBtn = $('#stopShareBtn');
+const localVideo = $('#localVideo');
+const remoteVideo = $('#remoteVideo');
+const gate = $('#gate');
+const enterBtn = $('#enterBtn');
+const nameInput = $('#nameInput');
+const app = $('#app');
+const installBtn = $('#installBtn');
+$('#year').textContent = new Date().getFullYear();
 
-const messagesEl  = document.getElementById('messages');
-const typingEl    = document.getElementById('typing');
-const replyBox    = document.getElementById('replyBox');
-const replyPreview= document.getElementById('replyPreview');
-const cancelReply = document.getElementById('cancelReply');
+let socket;
+let myName = '';
+let typingTimeout = null;
 
-const nameInline  = document.getElementById('nameInline');
-const messageInput= document.getElementById('messageInput');
-const sendBtn     = document.getElementById('sendBtn');
-const shareBtn    = document.getElementById('shareBtn');
-const installBtn  = document.getElementById('installBtn');
-const localVideo  = document.getElementById('localVideo');
-
-// Username flow (first-run)
-let username = localStorage.getItem('chat_name') || '';
-function showModal(){ nameModal.classList.remove('hidden'); nameField.focus(); }
-function hideModal(){ nameModal.classList.add('hidden'); }
-
-if (!username) showModal();
-else nameInline.value = username;
-
-saveNameBtn.onclick = () => {
-  const val = nameField.value.trim();
-  if (!val) return alert('Please enter your name');
-  username = val;
-  localStorage.setItem('chat_name', username);
-  nameInline.value = username;
-  hideModal();
-  socket.emit('register', username);
-};
-nameField.addEventListener('keydown', e => { if (e.key === 'Enter') saveNameBtn.click(); });
-
-// If user edits inline (desktop), update stored name
-nameInline.addEventListener('blur', () => {
-  if (!nameInline.value.trim()) { nameInline.value = username; return; }
-  username = nameInline.value.trim();
-  localStorage.setItem('chat_name', username);
-  socket.emit('register', username);
+/* PWA Install */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.disabled = false;
 });
-
-// Helpers
-const uid = () => Math.random().toString(36).slice(2,9);
-const EMOJI = {':smile:':'😄',':heart:':'❤️',':thumbsup:':'👍',':fire:':'🔥',':laugh:':'😂',':sad:':'😢',':ok:':'👌',':star:':'⭐'};
-const emojify = t => t.replace(/:\w+:/g,m=>EMOJI[m]||m);
-const escapeHtml = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-function appendMessage(msg, side='friend'){
-  const wrap = document.createElement('div');
-  wrap.className = 'msg ' + (side==='me'?'me':'friend');
-  wrap.dataset.id = msg.id;
-
-  const replyHTML = msg.replyTo ? `<div class="reply">${escapeHtml(msg.replyTo.sender)}: ${escapeHtml(msg.replyTo.text)}</div>` : '';
-
-  wrap.innerHTML = `
-    ${replyHTML}
-    <div class="meta"><strong>${escapeHtml(msg.sender)}</strong> <small>${msg.time}</small></div>
-    <div class="text">
-      ${emojify(escapeHtml(msg.text))}
-      <span class="ticks ${msg.seen?'seen':''}" id="tick-${msg.id}">${msg.ticks||''}</span>
-    </div>
-  `;
-
-  // clicking a friend message → open reply mode + send seen ack
-  if (side !== 'me') {
-    wrap.addEventListener('click', () => {
-      replyBox.classList.remove('hidden');
-      replyPreview.textContent = `${msg.sender}: ${msg.text.slice(0,80)}`;
-      replyBox.dataset.replyId = msg.id;
-      if (msg.senderSocket) socket.emit('seen', { to: msg.senderSocket, id: msg.id });
-    });
-  }
-
-  messagesEl.appendChild(wrap);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-cancelReply.onclick = () => {
-  replyBox.classList.add('hidden');
-  replyPreview.textContent = '';
-  replyBox.dataset.replyId = '';
-};
-
-// Sending
-function sendMessage(){
-  if (!username){ showModal(); return; }
-  const text = messageInput.value.trim();
-  if (!text) return;
-
-  const id = uid();
-  const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  const msg = {
-    id, text, time,
-    sender: username,
-    senderSocket: socket.id,
-    replyTo: replyBox.dataset.replyId ? { id: replyBox.dataset.replyId, sender: replyPreview.textContent.split(':')[0], text: replyPreview.textContent.split(': ').slice(1).join(': ') } : null,
-    ticks: '✓'
-  };
-
-  // local append (me) without echo from server
-  appendMessage(msg, 'me');
-
-  // clear UI and emit to others
-  replyBox.classList.add('hidden'); replyPreview.textContent=''; replyBox.dataset.replyId='';
-  socket.emit('chat-message', msg);
-  messageInput.value = '';
-  socket.emit('stop-typing', { sender: username });
-}
-sendBtn.onclick = sendMessage;
-messageInput.addEventListener('keydown', e=>{
-  if (e.key === 'Enter'){ e.preventDefault(); sendMessage(); }
-  else socket.emit('typing', { sender: username||'Anonymous' });
-});
-
-// Socket events
-socket.on('connect', () => { if (username) socket.emit('register', username); });
-
-socket.on('chat-message', (msg) => {
-  if (msg.senderSocket !== socket.id) {
-    appendMessage(msg, 'friend');
-    if (msg.senderSocket) socket.emit('delivered', { to: msg.senderSocket, id: msg.id });
-  }
-});
-socket.on('delivered', ({id})=>{
-  const t = document.getElementById(`tick-${id}`); if (t) t.textContent='✓✓';
-});
-socket.on('seen', ({id})=>{
-  const t = document.getElementById(`tick-${id}`); if (t){ t.textContent='✓✓'; t.classList.add('seen'); }
-});
-socket.on('typing', ({sender})=>{
-  if (sender !== username) typingEl.textContent = `${sender} is typing…`;
-});
-socket.on('stop-typing', ({sender})=>{
-  if (sender !== username) typingEl.textContent = '';
-});
-
-// ---------------- WebRTC screen share (simple broadcast) ----------------
-const pcConfig = { iceServers:[{urls:'stun:stun.l.google.com:19302'}] };
-let pc = null;
-
-shareBtn.onclick = startScreenShare;
-
-async function startScreenShare(){
-  try{
-    const stream = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:false });
-    localVideo.srcObject = stream;
-    localVideo.classList.remove('hidden');
-
-    pc = new RTCPeerConnection(pcConfig);
-    stream.getTracks().forEach(t => pc.addTrack(t, stream));
-    pc.onicecandidate = (e)=>{ if (e.candidate) socket.emit('webrtc-candidate', { candidate:e.candidate }); };
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('webrtc-offer', { offer, from: socket.id, sender: username });
-  }catch(err){
-    console.error(err);
-    alert('Screen share failed: ' + (err.message||err));
-  }
-}
-
-// viewer side
-socket.on('webrtc-offer', async ({ offer, from })=>{
-  try{
-    const vpc = new RTCPeerConnection(pcConfig);
-    vpc.ontrack = (e)=>{
-      localVideo.srcObject = e.streams[0];
-      localVideo.classList.remove('hidden');
-    };
-    vpc.onicecandidate = (e)=>{ if (e.candidate) socket.emit('webrtc-candidate', { candidate:e.candidate, to: from }); };
-
-    await vpc.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await vpc.createAnswer();
-    await vpc.setLocalDescription(answer);
-    socket.emit('webrtc-answer', { answer, to: from });
-  }catch(e){ console.error(e); }
-});
-socket.on('webrtc-answer', async ({ answer })=>{
-  if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
-});
-socket.on('webrtc-candidate', async ({ candidate })=>{
-  try{ if (candidate && pc) await pc.addIceCandidate(new RTCIceCandidate(candidate)); }catch(e){ console.error(e); }
-});
-
-// ---------------- PWA install ----------------
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e)=>{
-  e.preventDefault(); deferredPrompt = e;
-  document.getElementById('installBtn').style.display = 'inline-block';
-});
-document.getElementById('installBtn').onclick = async ()=>{
+installBtn.addEventListener('click', async () => {
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
   await deferredPrompt.userChoice;
   deferredPrompt = null;
-  document.getElementById('installBtn').style.display = 'none';
+  installBtn.disabled = true;
+});
+
+/* Name prompt -> enter app */
+enterBtn.addEventListener('click', () => {
+  const name = nameInput.value.trim();
+  if (!name) {
+    nameInput.focus();
+    return;
+  }
+  myName = name;
+  gate.classList.add('hidden');
+  app.classList.remove('hidden');
+
+  // Optional: enable background image if present
+  fetch('./bg.jpg', { method: 'HEAD' })
+    .then(res => {
+      if (res.ok) document.body.classList.add('has-bg');
+    })
+    .catch(()=>{});
+
+  startApp();
+});
+
+function startApp(){
+  // Use same origin (works for local & Render)
+  socket = io();
+
+  socket.emit('user:join', myName);
+
+  socket.on('presence:update', (names) => {
+    listEl.innerHTML = '';
+    names.forEach(n => {
+      const li = document.createElement('li');
+      li.textContent = n === myName ? `${n} (you)` : n;
+      listEl.appendChild(li);
+    });
+  });
+
+  // Incoming message (never echo back self from server)
+  socket.on('chat:message', (payload) => {
+    const { id, text, from } = payload;
+    addMessage({ text, from, mine: false, id });
+  });
+
+  // Delivery receipt (double tick gray)
+  socket.on('chat:delivered', ({ id }) => {
+    markDelivered(id);
+  });
+
+  // Seen receipt (double tick blue)
+  socket.on('chat:seen', ({ lastId, from }) => {
+    markSeenUpTo(lastId);
+  });
+
+  // Typing indicator
+  socket.on('chat:typing', ({ from, isTyping }) => {
+    if (from === myName) return;
+    typingEl.textContent = isTyping ? `${from} is typing…` : '';
+    typingEl.classList.toggle('hidden', !isTyping);
+  });
+
+  /* --------------- Chat composer events --------------- */
+  messageInput.addEventListener('input', () => {
+    socket.emit('chat:typing', { from: myName, isTyping: true });
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      socket.emit('chat:typing', { from: myName, isTyping: false });
+    }, 900);
+  });
+
+  sendBtn.addEventListener('click', sendMessage);
+  messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendMessage();
+  });
+
+  emojiBtn.addEventListener('click', () => {
+    messageInput.value += ' 😊';
+    messageInput.focus();
+  });
+
+  window.addEventListener('focus', () => {
+    // mark last message seen
+    const last = messages[messages.length - 1];
+    if (last) socket.emit('chat:seen', { lastId: last.id, from: myName });
+  });
+
+  /* --------------- Screen share signaling --------------- */
+  setupScreenShare();
+}
+
+/* --------------- Chat UI helpers --------------- */
+const messages = []; // {id, text, from, mine, delivered, seen}
+function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+
+function addMessage({ id = uid(), text, from, mine = false }){
+  const m = { id, text, from, mine, delivered: mine ? true : false, seen: false };
+  messages.push(m);
+
+  const wrap = document.createElement('div');
+  wrap.className = `msg ${mine ? 'me' : 'them'}`;
+
+  const body = document.createElement('div');
+  body.textContent = text;
+  wrap.appendChild(body);
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const who = document.createElement('span');
+  who.textContent = mine ? myName : from;
+  const time = document.createElement('span');
+  time.textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const ticks = document.createElement('span');
+  ticks.className = 'tick';
+  ticks.dataset.id = m.id;
+  ticks.textContent = mine ? '✓' : '';
+  meta.appendChild(who);
+  meta.appendChild(time);
+  meta.appendChild(ticks);
+
+  wrap.appendChild(meta);
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  return m.id;
+}
+
+function markDelivered(id){
+  const m = messages.find(x => x.id === id);
+  if (!m) return;
+  m.delivered = true;
+  const el = messagesEl.querySelector(`.tick[data-id="${id}"]`);
+  if (el) el.textContent = '✓✓';
+}
+
+function markSeenUpTo(lastId){
+  let reached = false;
+  for (let i = messages.length - 1; i >= 0; i--){
+    const m = messages[i];
+    if (m.mine){
+      const el = messagesEl.querySelector(`.tick[data-id="${m.id}"]`);
+      if (el){ el.textContent = '✓✓'; el.classList.add('seen'); }
+    }
+    if (m.id === lastId){ reached = true; break; }
+  }
+  return reached;
+}
+
+function sendMessage(){
+  const text = messageInput.value.trim();
+  if (!text) return;
+  const id = uid();
+  // Render my bubble immediately (no server echo)
+  addMessage({ id, text, from: myName, mine: true });
+  socket.emit('chat:message', { id, text, from: myName });
+  messageInput.value = '';
+  socket.emit('chat:typing', { from: myName, isTyping: false });
+}
+
+/* --------------- Screen share (WebRTC) --------------- */
+let localStream = null;
+const peers = {}; // viewerId -> RTCPeerConnection
+
+const rtcConfig = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
+  ]
 };
 
-// SW registration
-if ('serviceWorker' in navigator){
-  window.addEventListener('load', ()=> navigator.serviceWorker.register('/service-worker.js').catch(console.error));
+function setupScreenShare(){
+  startShareBtn.addEventListener('click', startScreenShare);
+  stopShareBtn.addEventListener('click', stopScreenShare);
+
+  // Notify viewers that broadcast is available
+  socket.on('screen:broadcast:available', ({ by }) => {
+    shareStatusEl.textContent = `Screen available from ${by}. Click to view.`;
+    // Auto-start watching
+    socket.emit('screen:watcher');
+  });
+
+  socket.on('screen:broadcast:stopped', () => {
+    shareStatusEl.textContent = 'No screen shared';
+    remoteVideo.srcObject = null;
+  });
+
+  socket.on('screen:watcher', async (id) => {
+    // A viewer connected; create a peer for them
+    const pc = new RTCPeerConnection(rtcConfig);
+    peers[id] = pc;
+
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) socket.emit('screen:candidate', id, e.candidate);
+    };
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('screen:offer', id, pc.localDescription);
+  });
+
+  socket.on('screen:offer', async (id, description) => {
+    // We are viewer
+    const pc = new RTCPeerConnection(rtcConfig);
+    peers[id] = pc;
+
+    pc.ontrack = (e) => {
+      remoteVideo.srcObject = e.streams[0];
+    };
+    pc.onicecandidate = (e) => {
+      if (e.candidate) socket.emit('screen:candidate', id, e.candidate);
+    };
+
+    await pc.setRemoteDescription(description);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit('screen:answer', id, pc.localDescription);
+  });
+
+  socket.on('screen:answer', async (id, description) => {
+    const pc = peers[id];
+    if (!pc) return;
+    await pc.setRemoteDescription(description);
+  });
+
+  socket.on('screen:candidate', async (id, candidate) => {
+    const pc = peers[id];
+    if (!pc) return;
+    try {
+      await pc.addIceCandidate(candidate);
+    } catch (err) {
+      console.error('ICE add error', err);
+    }
+  });
+}
+
+async function startScreenShare(){
+  try{
+    localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    localVideo.srcObject = localStream;
+    localVideo.classList.remove('hidden');
+    stopShareBtn.disabled = false;
+    startShareBtn.disabled = true;
+    shareStatusEl.textContent = `Sharing your screen…`;
+    socket.emit('screen:broadcast:start');
+
+    // If user stops from browser UI
+    localStream.getVideoTracks()[0].addEventListener('ended', stopScreenShare);
+  }catch(err){
+    alert('Screen share error: ' + err.message);
+  }
+}
+
+function stopScreenShare(){
+  if (localStream){
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+  localVideo.srcObject = null;
+  localVideo.classList.add('hidden');
+  startShareBtn.disabled = false;
+  stopShareBtn.disabled = true;
+  shareStatusEl.textContent = 'No screen shared';
+  socket.emit('screen:broadcast:stop');
+
+  // Close all peers
+  Object.values(peers).forEach(pc => pc.close());
+  for (const k in peers) delete peers[k];
 }

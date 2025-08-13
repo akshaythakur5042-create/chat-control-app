@@ -1,40 +1,103 @@
-// server/index.js
 const express = require('express');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 const path = require('path');
-const http = require('http');
 
 const app = express();
-const server = http.createServer(app);
-const { Server } = require('socket.io');
-const io = new Server(server, { cors: { origin: '*' } });
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: { origin: "*" }
+});
 
 const PORT = process.env.PORT || 3000;
 
 // Serve client
 app.use(express.static(path.join(__dirname, '..', 'client')));
-app.get('/', (_req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'index.html')));
+
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+// In-memory presence & delivery tracking (simple)
+const users = new Map(); // socket.id -> {name}
+const socketsByName = new Map(); // name -> socket.id (last one)
+let broadcasterId = null; // socket.id of current screen broadcaster
 
 io.on('connection', (socket) => {
-  // registration
-  socket.on('register', (username) => { socket.data.username = username; });
+  // Join with username
+  socket.on('user:join', (name) => {
+    users.set(socket.id, { name });
+    socketsByName.set(name, socket.id);
+    socket.join('global');
 
-  // chat
-  socket.on('chat-message', (msgObj) => {
-    socket.broadcast.emit('chat-message', msgObj); // no echo
+    // presence list
+    const everyone = [...users.values()].map(u => u.name);
+    io.to('global').emit('presence:update', everyone);
   });
 
-  // ticks
-  socket.on('delivered', ({ to, id }) => { if (to) io.to(to).emit('delivered', { id }); });
-  socket.on('seen', ({ to, id }) => { if (to) io.to(to).emit('seen', { id }); });
+  // Chat message (server never echoes back to sender)
+  socket.on('chat:message', (payload) => {
+    // payload: { id, text, from }
+    socket.to('global').emit('chat:message', payload);
+    // Acknowledge delivered to sender (double tick)
+    socket.emit('chat:delivered', { id: payload.id });
+  });
 
-  // typing
-  socket.on('typing', (payload) => socket.broadcast.emit('typing', payload));
-  socket.on('stop-typing', (payload) => socket.broadcast.emit('stop-typing', payload));
+  // Typing indicator (broadcast to others)
+  socket.on('chat:typing', ({ from, isTyping }) => {
+    socket.to('global').emit('chat:typing', { from, isTyping });
+  });
 
-  // WebRTC signaling
-  socket.on('webrtc-offer', (data) => socket.broadcast.emit('webrtc-offer', data));
-  socket.on('webrtc-answer', (data) => { if (data.to) io.to(data.to).emit('webrtc-answer', data); else socket.broadcast.emit('webrtc-answer', data); });
-  socket.on('webrtc-candidate', (data) => { if (data.to) io.to(data.to).emit('webrtc-candidate', data); else socket.broadcast.emit('webrtc-candidate', data); });
+  // Seen receipts
+  socket.on('chat:seen', ({ lastId, from }) => {
+    socket.to('global').emit('chat:seen', { lastId, from });
+  });
+
+  /* ---------- WebRTC Screen Share Signaling ---------- */
+  socket.on('screen:broadcast:start', () => {
+    broadcasterId = socket.id;
+    socket.to('global').emit('screen:broadcast:available', { by: users.get(socket.id)?.name || 'Unknown' });
+  });
+
+  socket.on('screen:broadcast:stop', () => {
+    socket.to('global').emit('screen:broadcast:stopped');
+    broadcasterId = null;
+  });
+
+  // Viewer announces they want to watch
+  socket.on('screen:watcher', () => {
+    if (broadcasterId) {
+      io.to(broadcasterId).emit('screen:watcher', socket.id);
+    }
+  });
+
+  // WebRTC pass-through signaling
+  socket.on('screen:offer', (id, description) => {
+    io.to(id).emit('screen:offer', socket.id, description);
+  });
+
+  socket.on('screen:answer', (id, description) => {
+    io.to(id).emit('screen:answer', socket.id, description);
+  });
+
+  socket.on('screen:candidate', (id, candidate) => {
+    io.to(id).emit('screen:candidate', socket.id, candidate);
+  });
+
+  socket.on('disconnect', () => {
+    const left = users.get(socket.id)?.name;
+    users.delete(socket.id);
+    if (left) {
+      // remove from reverse map if same socket
+      if (socketsByName.get(left) === socket.id) socketsByName.delete(left);
+    }
+    if (socket.id === broadcasterId) {
+      io.to('global').emit('screen:broadcast:stopped');
+      broadcasterId = null;
+    }
+    const everyone = [...users.values()].map(u => u.name);
+    io.to('global').emit('presence:update', everyone);
+  });
 });
 
-server.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+httpServer.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});

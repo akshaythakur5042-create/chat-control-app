@@ -1,11 +1,11 @@
 {
-  "name": "Chat-Control by Akshay",
+  "name": "HCL Chat-Control • Akshay",
   "short_name": "ChatControl",
+  "description": "Premium chat + screen share by Akshay, built for HCL Technologies.",
   "start_url": "/",
   "display": "standalone",
-  "scope": "/",
-  "theme_color": "#0dd3b3",
-  "background_color": "#0a1216",
+  "background_color": "#0b132b",
+  "theme_color": "#0b132b",
   "icons": [
     { "src": "/logo.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/logo.png", "sizes": "512x512", "type": "image/png" }
