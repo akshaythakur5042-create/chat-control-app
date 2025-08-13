@@ -1,70 +1,86 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HCL Chat-Control • by Akshay</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HCL Chat-Control · Akshay</title>
 
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#0c1b2a">
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#00c9a7" />
 
-  <link rel="icon" href="/assets/logo512.png">
-  <link rel="apple-touch-icon" href="/assets/logo512.png">
+  <link rel="stylesheet" href="/style.css" />
 
-  <link rel="stylesheet" href="./style.css?v=3.0.0">
+  <!-- Socket.IO loaded by script.js via CDN below; script.js is deferred -->
 </head>
 <body>
-  <!-- Name gate -->
-  <div id="gate">
-    <div class="gate-card">
-      <img src="./assets/logo512.png" alt="logo" class="logo">
+  <!-- NAME MODAL -->
+  <div id="nameModal" class="modal">
+    <div class="modal-card">
+      <!-- show logo.png if available, otherwise inline SVG -->
+      <img src="/logo.png" alt="logo" class="modal-logo" onerror="this.style.display='none';document.getElementById('svgLogo').style.display='block'"/>
+      <svg id="svgLogo" viewBox="0 0 100 100" style="width:72px;height:72px;border-radius:12px;display:none">
+        <rect width="100" height="100" rx="16" fill="#00c9a7"></rect>
+        <text x="50" y="58" text-anchor="middle" fill="#002" font-weight="800" font-size="46">A</text>
+      </svg>
       <h2>Welcome</h2>
-      <p>Enter your name to start</p>
-      <input id="nameInput" type="text" placeholder="Your name" autocomplete="name" />
-      <button id="continueBtn">Continue</button>
-      <div class="credit">© Akshay — Developed for HCL Technologies</div>
+      <p>Enter your name to start the chat</p>
+      <input id="nameInput" type="text" placeholder="Your name" />
+      <button id="nameSubmit" class="btn primary">Continue</button>
+      <p class="modal-credit">© Akshay — Developed for HCL Technologies</p>
     </div>
   </div>
 
-  <!-- App -->
+  <!-- APP -->
   <div id="app" class="app hidden">
-    <header class="app-header">
-      <div class="left">
-        <img src="./assets/logo512.png" class="brand">
+    <header class="topbar">
+      <div class="brand">
+        <img src="/logo.png" alt="logo" class="brand-logo" onerror="this.style.display='none'"/>
         <div>
-          <div class="brand-title">HCL Chat-Control</div>
-          <div id="typing" class="typing hidden">Someone is typing…</div>
+          <div class="app-name">HCL Chat-Control</div>
+          <div class="app-sub">Developed by Akshay · HCL Technologies</div>
         </div>
       </div>
-      <div class="right">
-        <button id="installBtn" class="ghost">Install App</button>
-        <button id="shareBtn">Start Screen Share</button>
+
+      <div class="actions">
+        <button id="installBtn" class="btn ghost" style="display:none">Install App</button>
+        <button id="startShare" class="btn primary">Start Screen Share</button>
       </div>
     </header>
 
-    <main class="chat">
-      <ul id="messages"></ul>
+    <main class="main">
+      <aside class="sidebar">
+        <h4>Online</h4>
+        <ul id="onlineList" class="online-list"></ul>
+      </aside>
+
+      <section class="chat-section">
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <div id="typing" class="typing hidden"></div>
+
+        <div id="replyBox" class="reply-box hidden">
+          Replying to: <span id="replyPreview"></span>
+          <button id="cancelReply" class="small">x</button>
+        </div>
+
+        <div class="composer">
+          <input id="messageInput" type="text" placeholder="Type a message..." autocomplete="off" />
+          <button id="sendBtn" class="btn send">Send</button>
+        </div>
+
+        <video id="localVideo" autoplay muted class="local-video hidden"></video>
+      </section>
+
+      <aside class="rightpanel">
+        <h4>Info</h4>
+        <p id="shareStatus">No screen shared</p>
+      </aside>
     </main>
 
-    <footer class="composer">
-      <button id="emojiBtn" title="Emoji">😊</button>
-      <input id="messageInput" type="text" placeholder="Type a message" />
-      <button id="sendBtn">Send</button>
-    </footer>
-
-    <div class="credit-bottom">© Akshay — Developed for HCL Technologies</div>
-
-    <!-- Screen share videos (hidden until sharing) -->
-    <video id="localVideo" autoplay playsinline muted class="video hidden"></video>
-    <video id="remoteVideo" autoplay playsinline class="video hidden"></video>
+    <footer class="footer">© Akshay — HCL Technologies</footer>
   </div>
 
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
-  <script defer src="./script.js?v=3.0.0"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js?v=3.0.0');
-    }
-  </script>
+  <!-- libs & app script -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous" defer></script>
+  <script src="/script.js" defer></script>
 </body>
 </html>

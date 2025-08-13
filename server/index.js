@@ -1,78 +1,66 @@
 // server/index.js
-const path = require('path');
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { Server } = require('socket.io');
 
-const PORT = process.env.PORT || 3000;
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" }
-});
+const io = new Server(server, { cors: { origin: "*" } });
+const PORT = process.env.PORT || 3000;
 
-// serve client
-app.use(express.static(path.join(__dirname, '..', 'client')));
+// serve static client folder
+app.use(express.static(path.join(__dirname, '../client')));
+app.get('/', (req,res) => res.sendFile(path.join(__dirname, '../client/index.html')));
 
-// in-memory maps
-const users = new Map();  // socket.id -> { name }
-const socketsByName = new Map(); // name -> socket.id (last seen)
+// simple in-memory presence
+const users = {}; // socketId -> name
 
 io.on('connection', (socket) => {
-  const name = socket.handshake.query?.name?.toString().trim() || `User-${socket.id.slice(0,4)}`;
-  users.set(socket.id, { name });
-  socketsByName.set(name, socket.id);
+  console.log('connected', socket.id);
 
-  // notify others someone joined
-  socket.broadcast.emit('presence:join', { name });
-
-  // typing
-  socket.on('chat:typing', (isTyping) => {
-    socket.broadcast.emit('chat:typing', { name, isTyping });
+  socket.on('user:join', (name) => {
+    users[socket.id] = name;
+    io.emit('presence:list', Object.values(users));
   });
 
-  // message send (no echo back to sender)
+  socket.on('presence:request', () => {
+    socket.emit('presence:list', Object.values(users));
+  });
+
   socket.on('chat:send', (payload) => {
-    // payload: { id, text, from, ts }
-    // ack "sent" to the sender immediately
+    // payload { id, text, from, ts, replyTo }
     socket.emit('chat:status', { id: payload.id, status: 'sent' });
-
-    // deliver to everyone else
+    // broadcast to others
     socket.broadcast.emit('chat:new', payload);
-
-    // let sender mark as delivered as soon as it was broadcast
+    // ack delivered
     socket.emit('chat:status', { id: payload.id, status: 'delivered' });
   });
 
-  // when a receiver renders message => notify sender to flip to "seen"
   socket.on('chat:seen', ({ id, from }) => {
-    const senderSocketId = socketsByName.get(from);
-    if (senderSocketId) {
-      io.to(senderSocketId).emit('chat:status', { id, status: 'seen' });
+    // find sender socket by name
+    const senderSocket = Object.keys(users).find(k => users[k] === from);
+    if (senderSocket) {
+      io.to(senderSocket).emit('chat:status', { id, status: 'seen' });
     }
   });
 
-  // WebRTC signaling for screen share
-  socket.on('webrtc:offer', (data) => {
-    socket.broadcast.emit('webrtc:offer', { from: name, sdp: data.sdp });
+  socket.on('chat:typing', ({ from, isTyping }) => {
+    socket.broadcast.emit('chat:typing', { from, isTyping });
   });
-  socket.on('webrtc:answer', (data) => {
-    socket.broadcast.emit('webrtc:answer', { from: name, sdp: data.sdp });
+
+  socket.on('screen:start', ({ by }) => {
+    socket.broadcast.emit('screen:start', { by });
   });
-  socket.on('webrtc:ice', (candidate) => {
-    socket.broadcast.emit('webrtc:ice', candidate);
+  socket.on('screen:stop', () => {
+    socket.broadcast.emit('screen:stop');
   });
 
   socket.on('disconnect', () => {
-    const u = users.get(socket.id);
-    if (u) {
-      socketsByName.delete(u.name);
-      io.emit('presence:leave', { name: u.name });
-    }
-    users.delete(socket.id);
+    delete users[socket.id];
+    io.emit('presence:list', Object.values(users));
+    console.log('disconnected', socket.id);
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));

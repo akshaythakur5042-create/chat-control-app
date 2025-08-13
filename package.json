@@ -1,15 +1,15 @@
 {
   "name": "chat-control-app",
-  "version": "3.0.0",
-  "description": "Premium chat + screen share (WhatsApp style) for HCL",
+  "version": "1.0.0",
+  "description": "Premium chat + screen share by Akshay for HCL",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js"
   },
-  "author": "Akshay — developed for HCL Technologies",
-  "license": "MIT",
   "dependencies": {
-    "express": "^4.19.2",
+    "express": "^4.18.2",
     "socket.io": "^4.7.5"
-  }
+  },
+  "author": "Akshay · HCL Technologies",
+  "license": "MIT"
 }
