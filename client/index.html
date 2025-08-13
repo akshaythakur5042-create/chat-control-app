@@ -2,60 +2,70 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Chat-Control App · Akshay</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Chat-Control · Akshay</title>
 
-  <!-- PWA manifest -->
   <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0dd3b3" />
 
-  <!-- Styles -->
   <link rel="stylesheet" href="/style.css" />
-
-  <meta name="theme-color" content="#00bfa5" />
 </head>
 <body>
+  <!-- Name Modal (first run) -->
+  <div id="nameModal" class="modal hidden">
+    <div class="modal-card">
+      <img src="/logo.png" class="modal-logo" alt="logo" />
+      <h2>Welcome 👋</h2>
+      <p>Enter your name to start chatting</p>
+      <input id="nameField" type="text" placeholder="Your name" />
+      <button id="saveNameBtn" class="cta">Continue</button>
+    </div>
+  </div>
+
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <img src="/logo.png" alt="logo" class="logo" />
+        <img src="/logo.png" class="logo" alt="logo" />
         <div class="title">
-          <div class="appname">Chat-Control App</div>
+          <div class="appname">Chat-Control</div>
           <div class="subtitle">Developed by Akshay · HCL Technologies</div>
         </div>
       </div>
-
-      <div class="right-actions">
-        <button id="installBtn" class="install-btn" title="Install app" style="display:none">📲 Install</button>
+      <div class="actions">
+        <button id="installBtn" class="ghost" title="Install app" style="display:none">📲 Install</button>
       </div>
     </header>
 
     <main class="main">
-      <section class="chat-panel">
+      <section class="chat">
         <div id="messages" class="messages" role="log" aria-live="polite"></div>
         <div id="typing" class="typing"></div>
 
         <div id="replyBox" class="reply-box hidden">
-          Replying to: <span id="replyPreview"></span>
-          <button id="cancelReply" class="small">x</button>
+          <div class="reply-left">
+            <span class="reply-label">Replying:</span>
+            <span id="replyPreview"></span>
+          </div>
+          <button id="cancelReply" class="tiny">✕</button>
         </div>
 
         <div class="composer">
-          <input id="nameInput" type="text" placeholder="Your name (press Enter)" />
-          <input id="messageInput" type="text" placeholder="Type a message (use :smile: :heart: )" />
-          <button id="sendBtn">Send</button>
-          <button id="shareBtn" title="Share your screen">📺</button>
+          <input id="nameInline" class="name-inline" type="text" placeholder="Your name" />
+          <input id="messageInput" type="text" placeholder="Message (use :smile: :heart: ...)" />
+          <button id="sendBtn" class="send">Send</button>
+          <button id="shareBtn" class="share" title="Share your screen">📺</button>
         </div>
 
-        <video id="localVideo" autoplay muted class="local-video hidden"></video>
+        <video id="localVideo" autoplay muted playsinline class="local-video hidden"></video>
       </section>
     </main>
 
-    <footer class="footer">© Akshay · HCL Technologies</footer>
+    <footer class="footer">
+      © Akshay · HCL Technologies
+    </footer>
   </div>
 
-  <!-- Socket.IO -->
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <!-- App script -->
   <script src="/script.js"></script>
 </body>
 </html>
