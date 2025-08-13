@@ -1,306 +1,253 @@
-/* globals io */
-const $ = (q) => document.querySelector(q);
-const messagesEl = $('#messages');
-const typingEl = $('#typing');
-const listEl = $('#onlineList');
-const shareStatusEl = $('#shareStatus');
-const messageInput = $('#messageInput');
-const sendBtn = $('#sendBtn');
-const emojiBtn = $('#emojiBtn');
-const startShareBtn = $('#startShareBtn');
-const stopShareBtn = $('#stopShareBtn');
-const localVideo = $('#localVideo');
-const remoteVideo = $('#remoteVideo');
-const gate = $('#gate');
-const enterBtn = $('#enterBtn');
-const nameInput = $('#nameInput');
-const app = $('#app');
-const installBtn = $('#installBtn');
-$('#year').textContent = new Date().getFullYear();
+/* client/script.js */
+(() => {
+  const $ = (sel) => document.querySelector(sel);
+  const gate = $('#gate');
+  const app = $('#app');
+  const messagesEl = $('#messages');
+  const inputEl = $('#messageInput');
+  const sendBtn = $('#sendBtn');
+  const typingEl = $('#typing');
+  const emojiBtn = $('#emojiBtn');
+  const installBtn = $('#installBtn');
+  const shareBtn = $('#shareBtn');
+  const nameInput = $('#nameInput');
+  const continueBtn = $('#continueBtn');
+  const localVideo = $('#localVideo');
+  const remoteVideo = $('#remoteVideo');
 
-let socket;
-let myName = '';
-let typingTimeout = null;
+  let myName = '';
+  let socket;
+  let typingTimeout;
+  let deferredPrompt;
+  const pending = new Map(); // id -> li element for ticks
 
-/* PWA Install */
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  installBtn.disabled = false;
-});
-installBtn.addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  installBtn.disabled = true;
-});
+  // PWA install capture
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.classList.remove('hidden');
+  });
+  installBtn.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt = null;
+      installBtn.classList.add('hidden');
+    }
+  });
 
-/* Name prompt -> enter app */
-enterBtn.addEventListener('click', () => {
-  const name = nameInput.value.trim();
-  if (!name) {
-    nameInput.focus();
-    return;
+  continueBtn.addEventListener('click', startApp);
+  nameInput.addEventListener('keydown', (e) => (e.key === 'Enter') && startApp());
+
+  function startApp(){
+    const n = nameInput.value.trim();
+    if(!n){ nameInput.focus(); return; }
+    myName = n;
+    gate.classList.add('hidden');
+    app.classList.remove('hidden');
+
+    // connect socket with name (IMPORTANT: replace with your Render domain if different)
+    socket = io('/', { query: { name: myName } });
+
+    wireSocket();
+    wireUI();
   }
-  myName = name;
-  gate.classList.add('hidden');
-  app.classList.remove('hidden');
 
-  // Optional: enable background image if present
-  fetch('./bg.jpg', { method: 'HEAD' })
-    .then(res => {
-      if (res.ok) document.body.classList.add('has-bg');
-    })
-    .catch(()=>{});
-
-  startApp();
-});
-
-function startApp(){
-  // Use same origin (works for local & Render)
-  socket = io();
-
-  socket.emit('user:join', myName);
-
-  socket.on('presence:update', (names) => {
-    listEl.innerHTML = '';
-    names.forEach(n => {
-      const li = document.createElement('li');
-      li.textContent = n === myName ? `${n} (you)` : n;
-      listEl.appendChild(li);
+  function wireUI(){
+    sendBtn.addEventListener('click', sendMessage);
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
+      emitTyping();
     });
-  });
+    emojiBtn.addEventListener('click', () => {
+      inputEl.value += '🙂';
+      inputEl.focus();
+      emitTyping();
+    });
+    shareBtn.addEventListener('click', startScreenShare);
+  }
 
-  // Incoming message (never echo back self from server)
-  socket.on('chat:message', (payload) => {
-    const { id, text, from } = payload;
-    addMessage({ text, from, mine: false, id });
-  });
+  function msgTemplate({ id, text, from, outgoing, ts }){
+    const li = document.createElement('li');
+    li.className = `msg ${outgoing ? 'outgoing' : 'incoming'}`;
+    li.dataset.id = id;
 
-  // Delivery receipt (double tick gray)
-  socket.on('chat:delivered', ({ id }) => {
-    markDelivered(id);
-  });
+    const initials = (from || '?').split(' ').map(s => s[0]?.toUpperCase()).join('').slice(0,2) || '?';
 
-  // Seen receipt (double tick blue)
-  socket.on('chat:seen', ({ lastId, from }) => {
-    markSeenUpTo(lastId);
-  });
+    li.innerHTML = `
+      <div class="avatar">${initials}</div>
+      <div class="bubble">
+        ${!outgoing ? `<div class="name">${from}</div>` : ``}
+        <div class="text">${escapeHtml(text)}</div>
+        <div class="meta">
+          <span class="time">${new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+          ${outgoing ? `<span class="ticks" data-ticks>✓</span>` : ``}
+        </div>
+      </div>
+    `;
+    return li;
+  }
 
-  // Typing indicator
-  socket.on('chat:typing', ({ from, isTyping }) => {
-    if (from === myName) return;
-    typingEl.textContent = isTyping ? `${from} is typing…` : '';
-    typingEl.classList.toggle('hidden', !isTyping);
-  });
+  function appendMessage(el){
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
 
-  /* --------------- Chat composer events --------------- */
-  messageInput.addEventListener('input', () => {
-    socket.emit('chat:typing', { from: myName, isTyping: true });
+  function sendMessage(){
+    const text = inputEl.value.trim();
+    if(!text) return;
+
+    const id = `m_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+    const ts = Date.now();
+
+    // Add immediately to UI as outgoing (NO echo)
+    const li = msgTemplate({ id, text, from: myName, outgoing:true, ts });
+    appendMessage(li);
+    pending.set(id, li);
+
+    // emit to server
+    socket.emit('chat:send', { id, text, from: myName, ts });
+
+    // clear box
+    inputEl.value = '';
+    emitTypingStop();
+  }
+
+  function wireSocket(){
+    socket.on('connect', () => console.log('Connected'));
+
+    // others typing
+    socket.on('chat:typing', ({ name, isTyping }) => {
+      typingEl.textContent = isTyping ? `${name} is typing…` : '';
+      typingEl.classList.toggle('hidden', !isTyping);
+    });
+
+    // incoming new message from others
+    socket.on('chat:new', (payload) => {
+      const { id, text, from, ts } = payload;
+      // render incoming
+      const li = msgTemplate({ id, text, from, outgoing:false, ts });
+      appendMessage(li);
+      // notify sender "seen" when we rendered it (you can delay this if you want)
+      socket.emit('chat:seen', { id, from });
+    });
+
+    // status updates for my outgoing messages
+    socket.on('chat:status', ({ id, status }) => {
+      const li = pending.get(id);
+      if (!li) return;
+      const ticks = li.querySelector('[data-ticks]');
+      if (!ticks) return;
+      if (status === 'sent') ticks.textContent = '✓';
+      if (status === 'delivered') ticks.textContent = '✓✓';
+      if (status === 'seen') {
+        ticks.textContent = '✓✓';
+        ticks.style.color = '#34b7f1'; // blue ticks
+      }
+    });
+
+    // presence (optional UI hooks)
+    socket.on('presence:join', ({ name }) => {
+      toast(`${name} joined`);
+    });
+    socket.on('presence:leave', ({ name }) => {
+      toast(`${name} left`);
+    });
+  }
+
+  // typing helpers
+  function emitTyping(){
+    socket.emit('chat:typing', true);
     clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-      socket.emit('chat:typing', { from: myName, isTyping: false });
-    }, 900);
-  });
+    typingTimeout = setTimeout(emitTypingStop, 1200);
+  }
+  function emitTypingStop(){
+    socket.emit('chat:typing', false);
+  }
 
-  sendBtn.addEventListener('click', sendMessage);
-  messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendMessage();
-  });
-
-  emojiBtn.addEventListener('click', () => {
-    messageInput.value += ' 😊';
-    messageInput.focus();
-  });
-
-  window.addEventListener('focus', () => {
-    // mark last message seen
-    const last = messages[messages.length - 1];
-    if (last) socket.emit('chat:seen', { lastId: last.id, from: myName });
-  });
-
-  /* --------------- Screen share signaling --------------- */
-  setupScreenShare();
-}
-
-/* --------------- Chat UI helpers --------------- */
-const messages = []; // {id, text, from, mine, delivered, seen}
-function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
-
-function addMessage({ id = uid(), text, from, mine = false }){
-  const m = { id, text, from, mine, delivered: mine ? true : false, seen: false };
-  messages.push(m);
-
-  const wrap = document.createElement('div');
-  wrap.className = `msg ${mine ? 'me' : 'them'}`;
-
-  const body = document.createElement('div');
-  body.textContent = text;
-  wrap.appendChild(body);
-
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-  const who = document.createElement('span');
-  who.textContent = mine ? myName : from;
-  const time = document.createElement('span');
-  time.textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  const ticks = document.createElement('span');
-  ticks.className = 'tick';
-  ticks.dataset.id = m.id;
-  ticks.textContent = mine ? '✓' : '';
-  meta.appendChild(who);
-  meta.appendChild(time);
-  meta.appendChild(ticks);
-
-  wrap.appendChild(meta);
-  messagesEl.appendChild(wrap);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-
-  return m.id;
-}
-
-function markDelivered(id){
-  const m = messages.find(x => x.id === id);
-  if (!m) return;
-  m.delivered = true;
-  const el = messagesEl.querySelector(`.tick[data-id="${id}"]`);
-  if (el) el.textContent = '✓✓';
-}
-
-function markSeenUpTo(lastId){
-  let reached = false;
-  for (let i = messages.length - 1; i >= 0; i--){
-    const m = messages[i];
-    if (m.mine){
-      const el = messagesEl.querySelector(`.tick[data-id="${m.id}"]`);
-      if (el){ el.textContent = '✓✓'; el.classList.add('seen'); }
+  // simple toast
+  let toastTimer;
+  function toast(msg){
+    clearTimeout(toastTimer);
+    let t = document.querySelector('.toast');
+    if(!t){
+      t = document.createElement('div');
+      t.className = 'toast';
+      Object.assign(t.style, {
+        position:'fixed', left:'50%', transform:'translateX(-50%)',
+        bottom:'86px', background:'rgba(0,0,0,.7)', color:'#fff',
+        padding:'8px 12px', borderRadius:'10px', zIndex:9999
+      });
+      document.body.appendChild(t);
     }
-    if (m.id === lastId){ reached = true; break; }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    toastTimer = setTimeout(()=> t.style.opacity='0', 1500);
   }
-  return reached;
-}
 
-function sendMessage(){
-  const text = messageInput.value.trim();
-  if (!text) return;
-  const id = uid();
-  // Render my bubble immediately (no server echo)
-  addMessage({ id, text, from: myName, mine: true });
-  socket.emit('chat:message', { id, text, from: myName });
-  messageInput.value = '';
-  socket.emit('chat:typing', { from: myName, isTyping: false });
-}
+  // Screen share (WebRTC P2P)
+  let pc;
+  async function startScreenShare(){
+    try{
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:false });
+      localVideo.srcObject = stream;
+      localVideo.classList.remove('hidden');
 
-/* --------------- Screen share (WebRTC) --------------- */
-let localStream = null;
-const peers = {}; // viewerId -> RTCPeerConnection
+      pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
-const rtcConfig = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
-  ]
-};
+      pc.ontrack = (e) => {
+        remoteVideo.srcObject = e.streams[0];
+        remoteVideo.classList.remove('hidden');
+      };
+      pc.onicecandidate = ({ candidate }) => {
+        if(candidate) socket.emit('webrtc:ice', candidate);
+      };
 
-function setupScreenShare(){
-  startShareBtn.addEventListener('click', startScreenShare);
-  stopShareBtn.addEventListener('click', stopScreenShare);
-
-  // Notify viewers that broadcast is available
-  socket.on('screen:broadcast:available', ({ by }) => {
-    shareStatusEl.textContent = `Screen available from ${by}. Click to view.`;
-    // Auto-start watching
-    socket.emit('screen:watcher');
-  });
-
-  socket.on('screen:broadcast:stopped', () => {
-    shareStatusEl.textContent = 'No screen shared';
-    remoteVideo.srcObject = null;
-  });
-
-  socket.on('screen:watcher', async (id) => {
-    // A viewer connected; create a peer for them
-    const pc = new RTCPeerConnection(rtcConfig);
-    peers[id] = pc;
-
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate) socket.emit('screen:candidate', id, e.candidate);
-    };
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('screen:offer', id, pc.localDescription);
-  });
-
-  socket.on('screen:offer', async (id, description) => {
-    // We are viewer
-    const pc = new RTCPeerConnection(rtcConfig);
-    peers[id] = pc;
-
-    pc.ontrack = (e) => {
-      remoteVideo.srcObject = e.streams[0];
-    };
-    pc.onicecandidate = (e) => {
-      if (e.candidate) socket.emit('screen:candidate', id, e.candidate);
-    };
-
-    await pc.setRemoteDescription(description);
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    socket.emit('screen:answer', id, pc.localDescription);
-  });
-
-  socket.on('screen:answer', async (id, description) => {
-    const pc = peers[id];
-    if (!pc) return;
-    await pc.setRemoteDescription(description);
-  });
-
-  socket.on('screen:candidate', async (id, candidate) => {
-    const pc = peers[id];
-    if (!pc) return;
-    try {
-      await pc.addIceCandidate(candidate);
-    } catch (err) {
-      console.error('ICE add error', err);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('webrtc:offer', { sdp: offer.sdp });
+    }catch(err){
+      alert('Screen share error: ' + err.message);
     }
-  });
-}
-
-async function startScreenShare(){
-  try{
-    localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-    localVideo.srcObject = localStream;
-    localVideo.classList.remove('hidden');
-    stopShareBtn.disabled = false;
-    startShareBtn.disabled = true;
-    shareStatusEl.textContent = `Sharing your screen…`;
-    socket.emit('screen:broadcast:start');
-
-    // If user stops from browser UI
-    localStream.getVideoTracks()[0].addEventListener('ended', stopScreenShare);
-  }catch(err){
-    alert('Screen share error: ' + err.message);
   }
-}
 
-function stopScreenShare(){
-  if (localStream){
-    localStream.getTracks().forEach(t => t.stop());
-    localStream = null;
+  // receive signaling
+  (function signal(){
+    let remoteSet = false;
+    socket?.on('webrtc:offer', async ({ sdp }) => {
+      pc = new RTCPeerConnection({ iceServers:[{urls:'stun:stun.l.google.com:19302'}] });
+      pc.ontrack = (e) => {
+        remoteVideo.srcObject = e.streams[0];
+        remoteVideo.classList.remove('hidden');
+      };
+      pc.onicecandidate = ({ candidate }) => {
+        if(candidate) socket.emit('webrtc:ice', candidate);
+      };
+      await pc.setRemoteDescription({ type:'offer', sdp });
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit('webrtc:answer', { sdp: answer.sdp });
+    });
+
+    socket?.on('webrtc:answer', async ({ sdp }) => {
+      if (!pc || remoteSet) return;
+      await pc.setRemoteDescription({ type:'answer', sdp });
+      remoteSet = true;
+    });
+
+    socket?.on('webrtc:ice', async (candidate) => {
+      try{
+        await pc?.addIceCandidate(candidate);
+      }catch(e){ console.warn(e); }
+    });
+  })();
+
+  // helpers
+  function escapeHtml(str){
+    return str.replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
   }
-  localVideo.srcObject = null;
-  localVideo.classList.add('hidden');
-  startShareBtn.disabled = false;
-  stopShareBtn.disabled = true;
-  shareStatusEl.textContent = 'No screen shared';
-  socket.emit('screen:broadcast:stop');
-
-  // Close all peers
-  Object.values(peers).forEach(pc => pc.close());
-  for (const k in peers) delete peers[k];
-}
+})();

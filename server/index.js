@@ -1,103 +1,78 @@
-const express = require('express');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
+// server/index.js
 const path = require('path');
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 
+const PORT = process.env.PORT || 3000;
 const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
+const server = http.createServer(app);
+const io = new Server(server, {
   cors: { origin: "*" }
 });
 
-const PORT = process.env.PORT || 3000;
-
-// Serve client
+// serve client
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
-app.get('/health', (req, res) => res.json({ ok: true }));
-
-// In-memory presence & delivery tracking (simple)
-const users = new Map(); // socket.id -> {name}
-const socketsByName = new Map(); // name -> socket.id (last one)
-let broadcasterId = null; // socket.id of current screen broadcaster
+// in-memory maps
+const users = new Map();  // socket.id -> { name }
+const socketsByName = new Map(); // name -> socket.id (last seen)
 
 io.on('connection', (socket) => {
-  // Join with username
-  socket.on('user:join', (name) => {
-    users.set(socket.id, { name });
-    socketsByName.set(name, socket.id);
-    socket.join('global');
+  const name = socket.handshake.query?.name?.toString().trim() || `User-${socket.id.slice(0,4)}`;
+  users.set(socket.id, { name });
+  socketsByName.set(name, socket.id);
 
-    // presence list
-    const everyone = [...users.values()].map(u => u.name);
-    io.to('global').emit('presence:update', everyone);
+  // notify others someone joined
+  socket.broadcast.emit('presence:join', { name });
+
+  // typing
+  socket.on('chat:typing', (isTyping) => {
+    socket.broadcast.emit('chat:typing', { name, isTyping });
   });
 
-  // Chat message (server never echoes back to sender)
-  socket.on('chat:message', (payload) => {
-    // payload: { id, text, from }
-    socket.to('global').emit('chat:message', payload);
-    // Acknowledge delivered to sender (double tick)
-    socket.emit('chat:delivered', { id: payload.id });
+  // message send (no echo back to sender)
+  socket.on('chat:send', (payload) => {
+    // payload: { id, text, from, ts }
+    // ack "sent" to the sender immediately
+    socket.emit('chat:status', { id: payload.id, status: 'sent' });
+
+    // deliver to everyone else
+    socket.broadcast.emit('chat:new', payload);
+
+    // let sender mark as delivered as soon as it was broadcast
+    socket.emit('chat:status', { id: payload.id, status: 'delivered' });
   });
 
-  // Typing indicator (broadcast to others)
-  socket.on('chat:typing', ({ from, isTyping }) => {
-    socket.to('global').emit('chat:typing', { from, isTyping });
-  });
-
-  // Seen receipts
-  socket.on('chat:seen', ({ lastId, from }) => {
-    socket.to('global').emit('chat:seen', { lastId, from });
-  });
-
-  /* ---------- WebRTC Screen Share Signaling ---------- */
-  socket.on('screen:broadcast:start', () => {
-    broadcasterId = socket.id;
-    socket.to('global').emit('screen:broadcast:available', { by: users.get(socket.id)?.name || 'Unknown' });
-  });
-
-  socket.on('screen:broadcast:stop', () => {
-    socket.to('global').emit('screen:broadcast:stopped');
-    broadcasterId = null;
-  });
-
-  // Viewer announces they want to watch
-  socket.on('screen:watcher', () => {
-    if (broadcasterId) {
-      io.to(broadcasterId).emit('screen:watcher', socket.id);
+  // when a receiver renders message => notify sender to flip to "seen"
+  socket.on('chat:seen', ({ id, from }) => {
+    const senderSocketId = socketsByName.get(from);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit('chat:status', { id, status: 'seen' });
     }
   });
 
-  // WebRTC pass-through signaling
-  socket.on('screen:offer', (id, description) => {
-    io.to(id).emit('screen:offer', socket.id, description);
+  // WebRTC signaling for screen share
+  socket.on('webrtc:offer', (data) => {
+    socket.broadcast.emit('webrtc:offer', { from: name, sdp: data.sdp });
   });
-
-  socket.on('screen:answer', (id, description) => {
-    io.to(id).emit('screen:answer', socket.id, description);
+  socket.on('webrtc:answer', (data) => {
+    socket.broadcast.emit('webrtc:answer', { from: name, sdp: data.sdp });
   });
-
-  socket.on('screen:candidate', (id, candidate) => {
-    io.to(id).emit('screen:candidate', socket.id, candidate);
+  socket.on('webrtc:ice', (candidate) => {
+    socket.broadcast.emit('webrtc:ice', candidate);
   });
 
   socket.on('disconnect', () => {
-    const left = users.get(socket.id)?.name;
+    const u = users.get(socket.id);
+    if (u) {
+      socketsByName.delete(u.name);
+      io.emit('presence:leave', { name: u.name });
+    }
     users.delete(socket.id);
-    if (left) {
-      // remove from reverse map if same socket
-      if (socketsByName.get(left) === socket.id) socketsByName.delete(left);
-    }
-    if (socket.id === broadcasterId) {
-      io.to('global').emit('screen:broadcast:stopped');
-      broadcasterId = null;
-    }
-    const everyone = [...users.values()].map(u => u.name);
-    io.to('global').emit('presence:update', everyone);
   });
 });
 
-httpServer.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

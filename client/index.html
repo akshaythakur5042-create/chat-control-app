@@ -1,76 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>HCL Chat-Control • Akshay</title>
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#0b132b" />
-  <link rel="apple-touch-icon" href="/logo.png">
-  <link rel="icon" href="/logo.png">
-  <link rel="preconnect" href="https://cdn.socket.io" crossorigin>
-  <link rel="stylesheet" href="./style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HCL Chat-Control • by Akshay</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0c1b2a">
+
+  <link rel="icon" href="/assets/logo512.png">
+  <link rel="apple-touch-icon" href="/assets/logo512.png">
+
+  <link rel="stylesheet" href="./style.css?v=3.0.0">
 </head>
 <body>
-  <!-- Name Prompt -->
+  <!-- Name gate -->
   <div id="gate">
     <div class="gate-card">
-      <img src="./logo.png" alt="Logo" class="logo">
-      <h1>Welcome</h1>
-      <p>Enter your name to join the chat</p>
-      <input id="nameInput" type="text" placeholder="Your name" maxlength="24" />
-      <button id="enterBtn">Continue</button>
-      <p class="credit">Developed by <b>Akshay</b> • for <b>HCL Technologies</b></p>
+      <img src="./assets/logo512.png" alt="logo" class="logo">
+      <h2>Welcome</h2>
+      <p>Enter your name to start</p>
+      <input id="nameInput" type="text" placeholder="Your name" autocomplete="name" />
+      <button id="continueBtn">Continue</button>
+      <div class="credit">© Akshay — Developed for HCL Technologies</div>
     </div>
   </div>
 
   <!-- App -->
-  <div id="app" class="hidden">
-    <header class="appbar">
-      <div class="brand">
-        <img src="./logo.png" class="brand-logo" alt="logo">
+  <div id="app" class="app hidden">
+    <header class="app-header">
+      <div class="left">
+        <img src="./assets/logo512.png" class="brand">
         <div>
-          <h2>HCL Chat-Control</h2>
-          <small>by Akshay • Secure • Fast</small>
+          <div class="brand-title">HCL Chat-Control</div>
+          <div id="typing" class="typing hidden">Someone is typing…</div>
         </div>
       </div>
-      <div class="actions">
-        <button id="installBtn" class="ghost">Install</button>
-        <button id="startShareBtn" class="primary">Start Screen</button>
-        <button id="stopShareBtn" class="danger" disabled>Stop</button>
+      <div class="right">
+        <button id="installBtn" class="ghost">Install App</button>
+        <button id="shareBtn">Start Screen Share</button>
       </div>
     </header>
 
-    <main class="main">
-      <aside class="sidebar">
-        <h3>Online</h3>
-        <ul id="onlineList"></ul>
-        <div id="shareStatus" class="share-status">No screen shared</div>
-      </aside>
-
-      <section class="chat">
-        <div id="messages" class="messages"></div>
-        <div id="typing" class="typing hidden">Someone is typing…</div>
-
-        <div class="composer">
-          <button id="emojiBtn" title="Emoji">😊</button>
-          <input id="messageInput" type="text" placeholder="Type a message…" autocomplete="off" />
-          <button id="sendBtn" class="primary">Send</button>
-        </div>
-      </section>
-
-      <section class="video">
-        <video id="remoteVideo" autoplay playsinline></video>
-        <video id="localVideo" autoplay muted playsinline class="hidden"></video>
-      </section>
+    <main class="chat">
+      <ul id="messages"></ul>
     </main>
 
-    <footer class="foot">
-      © <span id="year"></span> Akshay • Built for HCL Technologies • Premium UI
+    <footer class="composer">
+      <button id="emojiBtn" title="Emoji">😊</button>
+      <input id="messageInput" type="text" placeholder="Type a message" />
+      <button id="sendBtn">Send</button>
     </footer>
+
+    <div class="credit-bottom">© Akshay — Developed for HCL Technologies</div>
+
+    <!-- Screen share videos (hidden until sharing) -->
+    <video id="localVideo" autoplay playsinline muted class="video hidden"></video>
+    <video id="remoteVideo" autoplay playsinline class="video hidden"></video>
   </div>
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
-  <script src="./script.js"></script>
+  <script defer src="./script.js?v=3.0.0"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js?v=3.0.0');
+    }
+  </script>
 </body>
 </html>
